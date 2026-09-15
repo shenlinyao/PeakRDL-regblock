@@ -60,6 +60,7 @@ Links
 
     cpuif/introduction
     cpuif/apb
+    cpuif/axi4
     cpuif/axi4lite
     cpuif/avalon
     cpuif/obi
