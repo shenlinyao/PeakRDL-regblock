@@ -113,19 +113,16 @@ fi
 echo "==> Creating virtualenv $PREFIX"
 mkdir -p "$ROOT/peakrdl"
 if ! "$PYTHON" -m venv "$PREFIX" 2>/dev/null || [[ ! -x "$PREFIX/bin/pip" ]]; then
-    # ensurepip is broken on some RHEL8 python3.12 installs - create the venv
-    # without pip and bootstrap pip from the system wheel (no network needed)
-    echo "    (ensurepip failed; bootstrapping pip from system wheel)"
+    # ensurepip is broken on some RHEL8 python3.12 installs (and the bundled
+    # pip 23.2.1 wheel additionally trips over the broken system pyexpat) -
+    # create the venv without pip and bootstrap a current pip via get-pip.py
+    echo "    (ensurepip failed; bootstrapping pip via get-pip.py)"
     rm -rf "$PREFIX"
     "$PYTHON" -m venv --without-pip "$PREFIX"
-    WHEEL="$(ls /usr/share/python3.12-wheels/pip-*.whl 2>/dev/null | head -1)"
-    [[ -n "$WHEEL" && -f "$WHEEL" ]] || {
-        echo "error: no system pip wheel found in /usr/share/python3.12-wheels" >&2
-        exit 1
-    }
-    # Run pip directly from the wheel zip to install pip into the venv
-    "$PREFIX/bin/python" "$WHEEL/pip" \
-        install --quiet --no-index --find-links "$(dirname "$WHEEL")" pip
+    GETPIP="$(mktemp "${TMPDIR:-/tmp}/get-pip.XXXXXX.py")"
+    curl -fsSL https://bootstrap.pypa.io/get-pip.py -o "$GETPIP"
+    "$PREFIX/bin/python" "$GETPIP" --quiet
+    rm -f "$GETPIP"
 fi
 
 echo "==> Installing peakrdl-regblock from local source + PyPI companions"
