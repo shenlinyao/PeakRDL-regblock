@@ -112,7 +112,21 @@ fi
 
 echo "==> Creating virtualenv $PREFIX"
 mkdir -p "$ROOT/peakrdl"
-"$PYTHON" -m venv "$PREFIX"
+if ! "$PYTHON" -m venv "$PREFIX" 2>/dev/null || [[ ! -x "$PREFIX/bin/pip" ]]; then
+    # ensurepip is broken on some RHEL8 python3.12 installs - create the venv
+    # without pip and bootstrap pip from the system wheel (no network needed)
+    echo "    (ensurepip failed; bootstrapping pip from system wheel)"
+    rm -rf "$PREFIX"
+    "$PYTHON" -m venv --without-pip "$PREFIX"
+    WHEEL_DIR="$(dirname "$(ls /usr/share/python3.12-wheels/pip-*.whl 2>/dev/null | head -1)")"
+    [[ -n "$WHEEL_DIR" && -d "$WHEEL_DIR" ]] || {
+        echo "error: no system pip wheel found in /usr/share/python3.12-wheels" >&2
+        exit 1
+    }
+    # Run pip directly from the wheel zip to install pip into the venv
+    "$PREFIX/bin/python" "$WHEEL_DIR"/pip-*.whl/pip \
+        install --quiet --no-index --find-links "$WHEEL_DIR" pip
+fi
 
 echo "==> Installing peakrdl-regblock from local source + PyPI companions"
 "$PREFIX/bin/pip" install --quiet --upgrade pip
