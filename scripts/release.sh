@@ -110,23 +110,65 @@ if [[ "$FORCE" -eq 1 && -e "$PREFIX" ]]; then
     rm -rf "$PREFIX"
 fi
 
+# Pin pip: pip>=26 (and the bundled 23.2.1) import pyexpat on their
+# wheel-install path, which is broken on this RHEL8 box (python3.12.14 vs
+# old libexpat: undefined XML_SetBillionLaughsAttackProtection*). pip 25.2
+# avoids that chain. Override with $PEAKRDL_RELEASE_PIP_VERSION once the
+# system expat is fixed.
+PIP_VER="${PEAKRDL_RELEASE_PIP_VERSION:-25.2}"
+
 echo "==> Creating virtualenv $PREFIX"
 mkdir -p "$ROOT/peakrdl"
 if ! "$PYTHON" -m venv "$PREFIX" 2>/dev/null || [[ ! -x "$PREFIX/bin/pip" ]]; then
-    # ensurepip is broken on some RHEL8 python3.12 installs (and the bundled
-    # pip 23.2.1 wheel additionally trips over the broken system pyexpat) -
-    # create the venv without pip and bootstrap a current pip via get-pip.py
-    echo "    (ensurepip failed; bootstrapping pip via get-pip.py)"
+    # ensurepip is broken on this box - create the venv without pip and
+    # bootstrap pip by unzipping the wheel directly (no pip/pyexpat needed)
+    echo "    (ensurepip failed; bootstrapping pip $PIP_VER from PyPI wheel)"
     rm -rf "$PREFIX"
     "$PYTHON" -m venv --without-pip "$PREFIX"
-    GETPIP="$(mktemp "${TMPDIR:-/tmp}/get-pip.XXXXXX.py")"
-    curl -fsSL https://bootstrap.pypa.io/get-pip.py -o "$GETPIP"
-    "$PREFIX/bin/python" "$GETPIP" --quiet
-    rm -f "$GETPIP"
+    PIP_URL="$("$PYTHON" -c "
+import json, urllib.request
+d = json.load(urllib.request.urlopen('https://pypi.org/pypi/pip/$PIP_VER/json'))
+print(next(u['url'] for u in d['urls'] if u['filename'].endswith('py3-none-any.whl')))
+")"
+    PIP_WHL="$(mktemp "${TMPDIR:-/tmp}/pip-XXXXXX.whl")"
+    curl -fsSL "$PIP_URL" -o "$PIP_WHL"
+    SP="$("$PREFIX/bin/python" -c "import sysconfig; print(sysconfig.get_paths()['purelib'])")"
+    "$PREFIX/bin/python" -m zipfile -e "$PIP_WHL" "$SP"
+    rm -f "$PIP_WHL"
+    printf '#!/usr/bin/env bash\nexec "$(dirname "$(readlink -f "$0")")/python" -m pip "$@"\n' > "$PREFIX/bin/pip"
+    chmod +x "$PREFIX/bin/pip"
+    ln -sf pip "$PREFIX/bin/pip3"
+else
+    "$PREFIX/bin/pip" install --quiet --upgrade "pip==$PIP_VER"
 fi
 
+# Stock pip's vendored distlib imports xmlrpc -> pyexpat eagerly, which is
+# broken on this box. Guard it (xmlrpc is only used by the defunct PyPI
+# XMLRPC API, never by pip install). Remove once the system expat is fixed.
+SP="$("$PREFIX/bin/python" -c "import sysconfig; print(sysconfig.get_paths()['purelib'])")"
+"$PREFIX/bin/python" - "$SP" <<'PYEOF'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1]) / "pip/_vendor/distlib/compat.py"
+s = p.read_text()
+old = "    import xmlrpc.client as xmlrpclib\n"
+new = """    try:
+        import xmlrpc.client as xmlrpclib
+    except ImportError:
+        # System pyexpat is broken (libexpat too old). xmlrpc is only used by
+        # the defunct PyPI XMLRPC API, never by pip install - stub it out.
+        class _XMLRPCStub(object):
+            def __getattr__(self, name):
+                if name in ('Transport', 'SafeTransport', 'ServerProxy'):
+                    return object  # subclassable placeholder, never instantiated
+                raise ImportError('xmlrpc unavailable: pyexpat is broken')
+        xmlrpclib = _XMLRPCStub()
+"""
+if old in s:
+    p.write_text(s.replace(old, new, 1))
+    print("    (patched pip's distlib compat: guarded xmlrpc import)")
+PYEOF
+
 echo "==> Installing peakrdl-regblock from local source + PyPI companions"
-"$PREFIX/bin/pip" install --quiet --upgrade pip
 "$PREFIX/bin/pip" install --quiet "$BUILDDIR" peakrdl peakrdl-uvm peakrdl-docx
 
 echo "==> Smoke test: $PREFIX/bin/peakrdl regblock --help"
