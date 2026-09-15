@@ -1,0 +1,12 @@
+#%Module1.0
+proc ModulesHelp {} {
+    global tool
+    global version
+    puts stderr "\t Adds $tool $version to your PATH environment variable\n"
+}
+set             tool          "peakrdl"
+set             version       @VERSION@
+conflict        $tool
+setenv          PEAKRDL_HOME  @PREFIX@
+prepend-path    PATH          $env(PEAKRDL_HOME)/bin
+module-whatis   "adds peakrdl @VERSION@ (regblock fork, git @GIT_SHA@) to your PATH environment variable"
