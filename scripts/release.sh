@@ -118,14 +118,14 @@ if ! "$PYTHON" -m venv "$PREFIX" 2>/dev/null || [[ ! -x "$PREFIX/bin/pip" ]]; th
     echo "    (ensurepip failed; bootstrapping pip from system wheel)"
     rm -rf "$PREFIX"
     "$PYTHON" -m venv --without-pip "$PREFIX"
-    WHEEL_DIR="$(dirname "$(ls /usr/share/python3.12-wheels/pip-*.whl 2>/dev/null | head -1)")"
-    [[ -n "$WHEEL_DIR" && -d "$WHEEL_DIR" ]] || {
+    WHEEL="$(ls /usr/share/python3.12-wheels/pip-*.whl 2>/dev/null | head -1)"
+    [[ -n "$WHEEL" && -f "$WHEEL" ]] || {
         echo "error: no system pip wheel found in /usr/share/python3.12-wheels" >&2
         exit 1
     }
     # Run pip directly from the wheel zip to install pip into the venv
-    "$PREFIX/bin/python" "$WHEEL_DIR"/pip-*.whl/pip \
-        install --quiet --no-index --find-links "$WHEEL_DIR" pip
+    "$PREFIX/bin/python" "$WHEEL/pip" \
+        install --quiet --no-index --find-links "$(dirname "$WHEEL")" pip
 fi
 
 echo "==> Installing peakrdl-regblock from local source + PyPI companions"
