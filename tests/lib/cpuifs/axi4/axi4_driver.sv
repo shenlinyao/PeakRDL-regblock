@@ -8,45 +8,14 @@
 // Modeled on ../axi4lite/axi4lite_intf_driver.sv: mailbox-based write
 // requests with independent AW/W issue processes, response listeners that
 // match responses to requests in order, and randomized BREADY/RREADY.
-module axi4_driver #(
+interface axi4_driver #(
         parameter DATA_WIDTH = 32,
         parameter ADDR_WIDTH = 32,
         parameter ID_WIDTH = 1
     )(
         input wire clk,
         input wire rst,
-
-        input  wire                    s_axi_awready,
-        output logic                   s_axi_awvalid,
-        output logic [ID_WIDTH-1:0]    s_axi_awid,
-        output logic [ADDR_WIDTH-1:0]  s_axi_awaddr,
-        output logic [7:0]             s_axi_awlen,
-        output logic [2:0]             s_axi_awsize,
-        output logic [1:0]             s_axi_awburst,
-        output logic [2:0]             s_axi_awprot,
-        input  wire                    s_axi_wready,
-        output logic                   s_axi_wvalid,
-        output logic [DATA_WIDTH-1:0]  s_axi_wdata,
-        output logic [DATA_WIDTH/8-1:0] s_axi_wstrb,
-        output logic                   s_axi_wlast,
-        output logic                   s_axi_bready,
-        input  wire                    s_axi_bvalid,
-        input  wire [ID_WIDTH-1:0]     s_axi_bid,
-        input  wire [1:0]              s_axi_bresp,
-        input  wire                    s_axi_arready,
-        output logic                   s_axi_arvalid,
-        output logic [ID_WIDTH-1:0]    s_axi_arid,
-        output logic [ADDR_WIDTH-1:0]  s_axi_araddr,
-        output logic [7:0]             s_axi_arlen,
-        output logic [2:0]             s_axi_arsize,
-        output logic [1:0]             s_axi_arburst,
-        output logic [2:0]             s_axi_arprot,
-        output logic                   s_axi_rready,
-        input  wire                    s_axi_rvalid,
-        input  wire [ID_WIDTH-1:0]     s_axi_rid,
-        input  wire [DATA_WIDTH-1:0]   s_axi_rdata,
-        input  wire [1:0]              s_axi_rresp,
-        input  wire                    s_axi_rlast
+        axi4_intf.master m_axi
     );
 
     timeunit 1ps;
@@ -62,35 +31,35 @@ module axi4_driver #(
     logic [DATA_WIDTH/8-1:0] WSTRB;
     logic [1:0] BRESP, RRESP;
 
-    assign AWREADY = s_axi_awready;
-    assign s_axi_awvalid = AWVALID;
-    assign s_axi_awid = '0;
-    assign s_axi_awaddr = AWADDR;
-    assign s_axi_awlen = '0;
-    assign s_axi_awsize = 3'(AXSIZE);
-    assign s_axi_awburst = 2'b01; // INCR
-    assign s_axi_awprot = '0;
-    assign WREADY = s_axi_wready;
-    assign s_axi_wvalid = WVALID;
-    assign s_axi_wdata = WDATA;
-    assign s_axi_wstrb = WSTRB;
-    assign s_axi_wlast = WVALID; // single beat: WLAST == WVALID
-    assign s_axi_bready = BREADY;
-    assign BVALID = s_axi_bvalid;
-    assign BRESP = s_axi_bresp;
-    assign ARREADY = s_axi_arready;
-    assign s_axi_arvalid = ARVALID;
-    assign s_axi_arid = '0;
-    assign s_axi_araddr = ARADDR;
-    assign s_axi_arlen = '0;
-    assign s_axi_arsize = 3'(AXSIZE);
-    assign s_axi_arburst = 2'b01; // INCR
-    assign s_axi_arprot = '0;
-    assign s_axi_rready = RREADY;
-    assign RVALID = s_axi_rvalid;
-    assign RDATA = s_axi_rdata;
-    assign RRESP = s_axi_rresp;
-    assign RLAST = s_axi_rlast;
+    assign AWREADY = m_axi.AWREADY;
+    assign m_axi.AWVALID = AWVALID;
+    assign m_axi.AWID = '0;
+    assign m_axi.AWADDR = AWADDR;
+    assign m_axi.AWLEN = '0;
+    assign m_axi.AWSIZE = 3'(AXSIZE);
+    assign m_axi.AWBURST = 2'b01; // INCR
+    assign m_axi.AWPROT = '0;
+    assign WREADY = m_axi.WREADY;
+    assign m_axi.WVALID = WVALID;
+    assign m_axi.WDATA = WDATA;
+    assign m_axi.WSTRB = WSTRB;
+    assign m_axi.WLAST = WVALID; // single beat: WLAST == WVALID
+    assign m_axi.BREADY = BREADY;
+    assign BVALID = m_axi.BVALID;
+    assign BRESP = m_axi.BRESP;
+    assign ARREADY = m_axi.ARREADY;
+    assign m_axi.ARVALID = ARVALID;
+    assign m_axi.ARID = '0;
+    assign m_axi.ARADDR = ARADDR;
+    assign m_axi.ARLEN = '0;
+    assign m_axi.ARSIZE = 3'(AXSIZE);
+    assign m_axi.ARBURST = 2'b01; // INCR
+    assign m_axi.ARPROT = '0;
+    assign m_axi.RREADY = RREADY;
+    assign RVALID = m_axi.RVALID;
+    assign RDATA = m_axi.RDATA;
+    assign RRESP = m_axi.RRESP;
+    assign RLAST = m_axi.RLAST;
 
     default clocking cb @(posedge clk);
         default input #1step output #1;
@@ -277,4 +246,4 @@ module axi4_driver #(
         data &= mask;
         assert(data == expected_data) else $error("Read from 0x%x returned 0x%x. Expected 0x%x", addr, data, expected_data);
     endtask
-endmodule
+endinterface

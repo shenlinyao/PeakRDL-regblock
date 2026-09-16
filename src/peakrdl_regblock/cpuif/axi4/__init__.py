@@ -12,14 +12,55 @@ class AXI4_Cpuif(CpuifBase):
     sequential single-beat transfers on the peakrdl-regblock internal
     CPUIF protocol. One burst per direction at a time (AWREADY/ARREADY
     stay low while busy) - legal AXI4.
+
+    Exposed as a SystemVerilog interface port (axi4_intf.slave). Instantiate
+    axi4_intf (hdl-src/axi4_intf.sv) with an ID_WIDTH matching this module's
+    ID_WIDTH parameter.
     """
 
     template_path = "axi4_tmpl.sv"
-    is_interface = False
+    is_interface = True
 
     @property
     def parameters(self) -> List[str]:
         return ["parameter ID_WIDTH = 1"]
+
+    @property
+    def port_declaration(self) -> str:
+        return "axi4_intf.slave s_axi"
+
+    def signal(self, name: str) -> str:
+        return "s_axi." + name.upper()
+
+    @property
+    def regblock_latency(self) -> int:
+        return max(self.exp.ds.min_read_latency, self.exp.ds.min_write_latency)
+
+    @property
+    def max_outstanding(self) -> int:
+        """
+        Best pipelined performance is when the max outstanding transactions
+        is the design's latency + 2. Same reasoning as the built-in axi4lite.
+        """
+        return self.regblock_latency + 2
+
+    @property
+    def resp_buffer_size(self) -> int:
+        """Read response FIFO depth; must be >= max_outstanding."""
+        return self.max_outstanding
+
+    @property
+    def bus_bytes_lg(self) -> int:
+        """log2 of the bus width in bytes (number of address LSBs within a bus word)."""
+        return clog2(self.data_width_bytes)
+
+
+class AXI4_Cpuif_flattened(AXI4_Cpuif):
+    """
+    Same full AXI4 cpuif, but flattens the interface into discrete
+    s_axi_* input/output ports.
+    """
+    is_interface = False
 
     @property
     def port_declaration(self) -> str:
@@ -69,25 +110,3 @@ class AXI4_Cpuif(CpuifBase):
 
     def signal(self, name: str) -> str:
         return "s_axi_" + name
-
-    @property
-    def regblock_latency(self) -> int:
-        return max(self.exp.ds.min_read_latency, self.exp.ds.min_write_latency)
-
-    @property
-    def max_outstanding(self) -> int:
-        """
-        Best pipelined performance is when the max outstanding transactions
-        is the design's latency + 2. Same reasoning as the built-in axi4lite.
-        """
-        return self.regblock_latency + 2
-
-    @property
-    def resp_buffer_size(self) -> int:
-        """Read response FIFO depth; must be >= max_outstanding."""
-        return self.max_outstanding
-
-    @property
-    def bus_bytes_lg(self) -> int:
-        """log2 of the bus width in bytes (number of address LSBs within a bus word)."""
-        return clog2(self.data_width_bytes)

@@ -9,7 +9,9 @@
 > (LGPLv3, license and notices retained). Local changes live on branch
 > `dev/axi4-cpuif`:
 >
-> * **Full AXI4 (burst-capable) cpuif** — `--cpuif axi4`. Bursts
+> * **Full AXI4 (burst-capable) cpuif** — `--cpuif axi4` (SystemVerilog
+>   interface port `axi4_intf.slave`, definition in `hdl-src/axi4_intf.sv`)
+>   or `--cpuif axi4-flat` (discrete `s_axi_*` ports). Bursts
 >   (INCR/FIXED/WRAP, narrow transfers) are decomposed into sequential
 >   single-beat transfers on the internal protocol. See
 >   `docs/cpuif/axi4.rst` and `src/peakrdl_regblock/cpuif/axi4/`.

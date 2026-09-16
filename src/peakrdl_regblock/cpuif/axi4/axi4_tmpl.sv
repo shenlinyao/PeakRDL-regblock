@@ -1,3 +1,16 @@
+{%- if cpuif.is_interface -%}
+`ifndef SYNTHESIS
+    initial begin
+        assert_bad_addr_width: assert($bits({{cpuif.signal("araddr")}}) >= {{ds.package_name}}::{{ds.module_name.upper()}}_MIN_ADDR_WIDTH)
+            else $error("Interface address width of %0d is too small. Shall be at least %0d bits", $bits({{cpuif.signal("araddr")}}), {{ds.package_name}}::{{ds.module_name.upper()}}_MIN_ADDR_WIDTH);
+        assert_bad_data_width: assert($bits({{cpuif.signal("wdata")}}) == {{ds.package_name}}::{{ds.module_name.upper()}}_DATA_WIDTH)
+            else $error("Interface data width of %0d is incorrect. Shall be %0d bits", $bits({{cpuif.signal("wdata")}}), {{ds.package_name}}::{{ds.module_name.upper()}}_DATA_WIDTH);
+        assert_bad_id_width: assert($bits({{cpuif.signal("awid")}}) == ID_WIDTH)
+            else $error("Interface ID width of %0d is incorrect. Shall match the module's ID_WIDTH parameter (%0d)", $bits({{cpuif.signal("awid")}}), ID_WIDTH);
+    end
+`endif
+
+{% endif -%}
 //==========================================================================
 // Full AXI4 slave CPU interface with burst support.
 //

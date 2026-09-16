@@ -12,13 +12,26 @@ Implements the register block using a full
 `AMBA AXI4 <https://developer.arm.com/documentation/ihi0022/e/>`_
 slave CPU interface with burst support.
 
-* Command line: ``--cpuif axi4``
-* Class: :class:`peakrdl_regblock.cpuif.axi4.AXI4_Cpuif`
+The AXI4 CPU interface comes in two i/o port flavors:
+
+SystemVerilog Interface
+    * Command line: ``--cpuif axi4``
+    * Interface Definition: :download:`axi4_intf.sv <../../hdl-src/axi4_intf.sv>`
+    * Class: :class:`peakrdl_regblock.cpuif.axi4.AXI4_Cpuif`
+
+    Instantiate ``axi4_intf`` with an ``ID_WIDTH`` matching the module's
+    ``ID_WIDTH`` parameter (checked by an elaboration assertion in
+    simulation).
+
+Flattened inputs/outputs
+    Flattens the interface into discrete ``s_axi_*`` input and output ports.
+
+    * Command line: ``--cpuif axi4-flat``
+    * Class: :class:`peakrdl_regblock.cpuif.axi4.AXI4_Cpuif_flattened`
 
 Bursts are decomposed into sequential single-beat transfers on the
 peakrdl-regblock internal CPUIF protocol (which is one-transfer-at-a-time,
-in-order). All burst logic lives in the SystemVerilog template; the Python
-class declares the flat ``s_axi_*`` port list (``ID_WIDTH`` parameterized).
+in-order). All burst logic lives in the SystemVerilog template.
 
 Supported
 ---------
